@@ -1,6 +1,7 @@
 import express from "express";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
+import encrypt from "mongoose-encryption";
 
 const app = express();
 const port = 3000;
@@ -11,10 +12,13 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 mongoose.connect("mongodb://localhost:27017/userDB", { useNewUrlParser: true });
 
-const userSchema = {
+const userSchema = new mongoose.Schema({  // Add Schema from mongoose
     email: String,
     password: String
-};
+});
+
+const secret = "Thisisourlittlesecret";
+userSchema.plugin(encrypt, { secret: secret, encryptedFields: ['password'] }); //for encrypt only password
 
 const User = new mongoose.model("User", userSchema);
 
@@ -40,7 +44,7 @@ app.post("/register", (req, res) => {
     });
 
     newUser.save()
-        .then(() => {
+        .then(() => { // promise
             res.render("secrets.ejs");
         }).catch((err) => {
             console.log(err);
@@ -63,6 +67,9 @@ app.post("/login", (req, res) => {
 
 
 })
+
+//how mongoose-encryption works:
+//During save, documents are encrypted and then signed. During find, documents are authenticated and then decrypted
 
 
 app.listen(port, () => {
