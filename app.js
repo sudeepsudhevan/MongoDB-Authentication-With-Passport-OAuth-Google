@@ -1,8 +1,9 @@
-import 'dotenv/config';  // import doenv
+// import 'dotenv/config';  // import doenv
 import express from "express";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
-import md5 from "md5";
+import bcrypt from "bcrypt";
+const saltRounds = 10;
 
 const app = express();
 const port = 3000;
@@ -17,8 +18,6 @@ const userSchema = new mongoose.Schema({  // Add Schema from mongoose
     email: String,
     password: String
 });
-
-
 
 const User = new mongoose.model("User", userSchema);
 
@@ -36,30 +35,37 @@ app.get("/register", (req, res) => {
 })
 
 app.post("/register", (req, res) => {
-    const newUser = new User({
-        email: req.body.username,
-        password: md5(req.body.password)
-    });
 
-    newUser.save()
-        .then(() => { // promise
-            res.render("secrets.ejs");
-        }).catch((err) => {
-            console.log(err);
+    bcrypt.hash(req.body.password, saltRounds).then(function (hash) { // bcrypt salt + hash
+        const newUser = new User({
+            email: req.body.username,
+            password: hash
         });
+        newUser.save()
+            .then(() => { // promise
+                res.render("secrets.ejs");
+            }).catch((err) => {
+                console.log(err);
+            });
+    }).catch((err) => {
+        console.log(err);
+    });
 });
 
-// console.log(md5("qwerty"));
 
 app.post("/login", (req, res) => {
     const username = req.body.username;
-    const password = md5(req.body.password);  // md5 hash will always be same, but not easy to decrypt
+    const password = req.body.password;
 
     User.findOne({ email: username }).then((foundUser) => {
         if (foundUser) {
-            if (foundUser.password === password) {
-                res.render("secrets.ejs");
-            }
+            bcrypt.compare(password, foundUser.password).then(function (result) {
+                if (result == true) {
+                    res.render("secrets.ejs");
+                }
+            }).catch((err) => {
+                console.log(err);
+            });
         }
     }).catch((err) => {
         console.log(err);
