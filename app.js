@@ -1,3 +1,4 @@
+import 'dotenv/config';  // import doenv
 import express from "express";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
@@ -10,18 +11,19 @@ app.use(express.static("public"));
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
-mongoose.connect("mongodb://localhost:27017/userDB", { useNewUrlParser: true });
+mongoose.connect("mongodb://localhost:27017/userDB");
 
 const userSchema = new mongoose.Schema({  // Add Schema from mongoose
     email: String,
     password: String
 });
 
-const secret = "Thisisourlittlesecret";
+// console.log(process.env.SECRET);
+
+const secret = process.env.SECRET;  // using environment variable
 userSchema.plugin(encrypt, { secret: secret, encryptedFields: ['password'] }); //for encrypt only password
 
 const User = new mongoose.model("User", userSchema);
-
 
 
 app.get("/", (req, res) => {
@@ -67,9 +69,6 @@ app.post("/login", (req, res) => {
 
 
 })
-
-//how mongoose-encryption works:
-//During save, documents are encrypted and then signed. During find, documents are authenticated and then decrypted
 
 
 app.listen(port, () => {
