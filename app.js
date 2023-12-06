@@ -2,7 +2,7 @@ import 'dotenv/config';  // import doenv
 import express from "express";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
-import encrypt from "mongoose-encryption";
+import md5 from "md5";
 
 const app = express();
 const port = 3000;
@@ -18,10 +18,7 @@ const userSchema = new mongoose.Schema({  // Add Schema from mongoose
     password: String
 });
 
-// console.log(process.env.SECRET);
 
-const secret = process.env.SECRET;  // using environment variable
-userSchema.plugin(encrypt, { secret: secret, encryptedFields: ['password'] }); //for encrypt only password
 
 const User = new mongoose.model("User", userSchema);
 
@@ -29,7 +26,6 @@ const User = new mongoose.model("User", userSchema);
 app.get("/", (req, res) => {
     res.render("home.ejs")
 })
-
 
 app.get("/login", (req, res) => {
     res.render("login.ejs")
@@ -42,7 +38,7 @@ app.get("/register", (req, res) => {
 app.post("/register", (req, res) => {
     const newUser = new User({
         email: req.body.username,
-        password: req.body.password
+        password: md5(req.body.password)
     });
 
     newUser.save()
@@ -53,9 +49,11 @@ app.post("/register", (req, res) => {
         });
 });
 
+// console.log(md5("qwerty"));
+
 app.post("/login", (req, res) => {
     const username = req.body.username;
-    const password = req.body.password;
+    const password = md5(req.body.password);  // md5 hash will always be same, but not easy to decrypt
 
     User.findOne({ email: username }).then((foundUser) => {
         if (foundUser) {
@@ -66,8 +64,6 @@ app.post("/login", (req, res) => {
     }).catch((err) => {
         console.log(err);
     });
-
-
 })
 
 
