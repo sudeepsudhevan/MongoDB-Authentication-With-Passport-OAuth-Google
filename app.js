@@ -1,10 +1,12 @@
-// import 'dotenv/config';  // import doenv
+import 'dotenv/config';  // import doenv
 import express from "express";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
-import session from "express-session"; // Step 1 import necessary packages
+import session from "express-session";
 import passport from "passport";
 import passportLocalMongoose from "passport-local-mongoose";
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20'; // step 1
+import findOrCreate from "mongoose-findorcreate";
 
 
 const app = express();
@@ -27,22 +29,58 @@ mongoose.connect("mongodb://localhost:27017/userDB");
 
 const userSchema = new mongoose.Schema({  // Add Schema from mongoose
     email: String,
-    password: String
+    password: String,
+    googleId: String
 });
 
 userSchema.plugin(passportLocalMongoose); // step 5 add passportlocalmongoose to UserSchema as plugin 
 // only works if it use mongoose.schema for the model creation/schema creation.   
+userSchema.plugin(findOrCreate);
 
 const User = new mongoose.model("User", userSchema);
 
 passport.use(User.createStrategy()); // step 6  Creates a configured passport-local LocalStrategy instance that can be used in passport.
 
-passport.serializeUser(User.serializeUser()); // Create cookie
-passport.deserializeUser(User.deserializeUser()); //  find what in cookie
+passport.serializeUser(function (user, done) {
+    done(null, user._id);
+    // if you use Model.id as your idAttribute maybe you'd want
+    // done(null, user.id);
+});
+
+passport.deserializeUser((id, done) => {
+    User.findById(id).then(user => done(null, user))
+        .catch(error => done(error, null)
+        );
+});
+
+passport.use(new GoogleStrategy({
+    clientID: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    callbackURL: "http://127.0.0.1:3000/auth/google/secrets"
+},
+    function (accessToken, refreshToken, profile, cb) {
+        // console.log(profile);
+        User.findOrCreate({ googleId: profile.id }, function (err, user) {
+            return cb(err, user);
+        });
+    }
+));
 
 app.get("/", (req, res) => {
     res.render("home.ejs")
 })
+
+app.get("/auth/google",
+    passport.authenticate('google', { scope: ['profile'] })
+);
+
+app.get("/auth/google/secrets",
+    passport.authenticate('google', { failureRedirect: "/login " }),
+    function (req, res) {
+        // Successful authentication, redirect to secrets.
+        res.redirect("/secrets");
+    }
+);
 
 app.get("/login", (req, res) => {
     res.render("login.ejs")
